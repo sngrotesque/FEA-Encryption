@@ -18,7 +18,6 @@ typedef uint8_t wByte;
 #define WMKC_FEA_BL 16 // WMKC FEA Block length
 
 // 内存初始化处理
-void memory_zero(void *p, size_t n);
 void memory_secure(void *p, size_t n);
 
 enum class xcryptMode {ECB, CBC, CTR, CFB};

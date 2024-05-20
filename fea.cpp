@@ -40,11 +40,6 @@ static const wByte rsbox[256] = {
     0xf8, 0xb0, 0x3c, 0xa8, 0xdd, 0x02, 0xfc, 0x5f, 0xf5, 0x84, 0xf1, 0xec, 0x67, 0x80, 0x4f, 0xee
 };
 
-void memory_zero(void *p, size_t n)
-{
-    memset(p, 0x00, n);
-}
-
 void memory_secure(void *p, size_t n)
 {
 #   if defined(_WIN32)
@@ -328,10 +323,9 @@ static void nonce_add(wByte *counter)
 void fea::ctr_xcrypt(wByte *d, size_t n)
 {
     size_t i, ks_i;
-    wByte counter[WMKC_FEA_BL];
+    wByte counter[WMKC_FEA_BL] = {0};
     wByte ks[WMKC_FEA_BL] = {0};
 
-    memory_zero(counter, WMKC_FEA_BL);
     memcpy(counter, this->iv, WMKC_FEA_BL - 1); // 确保得到的Nonce足够长
 
     for(i = 0, ks_i = WMKC_FEA_BL; i < n; ++i, ++ks_i) {
