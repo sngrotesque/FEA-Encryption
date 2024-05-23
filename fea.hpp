@@ -22,7 +22,11 @@ void memory_secure(void *p, size_t n);
 
 enum class xcryptMode {ECB, CBC, CTR, CFB};
 
+#if defined(_WIN32) && defined(_MSC_VER)
+class __declspec(dllexport) fea {
+#else
 class fea {
+#endif
 private:
     void subBytes(wByte *block);
     void shiftBits(wByte *block);
