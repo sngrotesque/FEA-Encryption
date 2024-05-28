@@ -1,6 +1,15 @@
 #include "fea.hpp"
 
-static const wByte sbox[256] = {
+void memory_secure(void *p, size_t n)
+{
+#   if defined(_WIN32)
+    SecureZeroMemory(p, n);
+#   elif defined(__linux)
+    explicit_bzero(p, n);
+#   endif
+}
+
+static const uint8_t sbox[256] = {
     // 0     1     2     3     4     5     6     7     8     9     a     n     c     d     e     f
     0x2b, 0x1b, 0xf5, 0xd5, 0x6c, 0x78, 0xe3, 0xef, 0xce, 0x69, 0xb6, 0xda, 0x28, 0x16, 0xc2, 0xbc,
     0x56, 0xe6, 0x65, 0x48, 0x6b, 0xdd, 0xa9, 0x01, 0xcb, 0x94, 0x76, 0xcf, 0x20, 0xa1, 0x19, 0x91,
@@ -20,7 +29,7 @@ static const wByte sbox[256] = {
     0x13, 0xfa, 0x8e, 0x45, 0x24, 0xf8, 0x6e, 0xee, 0xf0, 0x7c, 0x90, 0xd0, 0xf6, 0x43, 0x8f, 0xc9
 };
 
-static const wByte rsbox[256] = {
+static const uint8_t rsbox[256] = {
     // 0     1     2     3     4     5     6     7     8     9     a     n     c     d     e     f
     0x81, 0x17, 0xa9, 0x71, 0x99, 0x65, 0x3a, 0x9a, 0xa4, 0x2f, 0x2b, 0x4c, 0xdf, 0xa7, 0xbe, 0x42,
     0x78, 0x72, 0xb7, 0xf0, 0x63, 0x36, 0x0d, 0xc3, 0x39, 0x1e, 0x52, 0x01, 0x93, 0xda, 0xc0, 0x2d,
@@ -40,15 +49,6 @@ static const wByte rsbox[256] = {
     0xf8, 0xb0, 0x3c, 0xa8, 0xdd, 0x02, 0xfc, 0x5f, 0xf5, 0x84, 0xf1, 0xec, 0x67, 0x80, 0x4f, 0xee
 };
 
-void memory_secure(void *p, size_t n)
-{
-#   if defined(_WIN32)
-    SecureZeroMemory(p, n);
-#   elif defined(__linux)
-    explicit_bzero(p, n);
-#   endif
-}
-
 // 按位循环左移3位
 #define WMKC_FEA_SHIFT_BITS_L(x) (((x >> 5) | (x << 3)) & 0xff)
 // 按位循环右移3位
@@ -57,7 +57,7 @@ void memory_secure(void *p, size_t n)
 #define WMKC_FEA_SBOX(x)  (sbox[(x)])
 #define WMKC_FEA_RSBOX(x) (rsbox[(x)])
 
-void fea::subBytes(wByte *block)
+void FEA::subBytes(uint8_t *block)
 {
     for(uint32_t i = 0; i < WMKC_FEA_BL; i += 8) {
         *(block + i)     = WMKC_FEA_SBOX(*(block + i));
@@ -71,7 +71,7 @@ void fea::subBytes(wByte *block)
     }
 }
 
-void fea::invSubBytes(wByte *block)
+void FEA::invSubBytes(uint8_t *block)
 {
     for(uint32_t i = 0; i < WMKC_FEA_BL; i += 8) {
         *(block + i)     = WMKC_FEA_RSBOX(*(block + i));
@@ -85,7 +85,7 @@ void fea::invSubBytes(wByte *block)
     }
 }
 
-void fea::shiftBits(wByte *block)
+void FEA::shiftBits(uint8_t *block)
 {
     for(uint32_t i = 0; i < WMKC_FEA_BL; i += 8) {
         *(block + i)     = WMKC_FEA_SHIFT_BITS_L(*(block + i));
@@ -99,7 +99,7 @@ void fea::shiftBits(wByte *block)
     }
 }
 
-void fea::invShiftBits(wByte *block)
+void FEA::invShiftBits(uint8_t *block)
 {
     for(uint32_t i = 0; i < WMKC_FEA_BL; i += 8) {
         *(block + i)     = WMKC_FEA_SHIFT_BITS_R(*(block + i));
@@ -113,9 +113,9 @@ void fea::invShiftBits(wByte *block)
     }
 }
 
-void fea::shiftRows(wByte *block)
+void FEA::shiftRows(uint8_t *block)
 {
-    wByte swap_array[8], swap;
+    uint8_t swap_array[8], swap;
 
     memcpy(swap_array, block, 8);
     memcpy(block, block + 8, 8);
@@ -134,9 +134,9 @@ void fea::shiftRows(wByte *block)
     *(block + 7) ^= swap;
 }
 
-void fea::invShiftRows(wByte *block)
+void FEA::invShiftRows(uint8_t *block)
 {
-    wByte swap_array[8], swap;
+    uint8_t swap_array[8], swap;
 
     swap = (*(block + 8)  ^ *(block + 9)  ^ *(block + 10) ^ *(block + 11) ^
             *(block + 12) ^ *(block + 13) ^ *(block + 14) ^ *(block + 15));
@@ -155,7 +155,7 @@ void fea::invShiftRows(wByte *block)
     memcpy(block + 8, swap_array, 8);
 }
 
-void fea::xorWithIV(wByte *block, wByte *iv)
+void FEA::xorWithIV(uint8_t *block, uint8_t *iv)
 {
     for(uint32_t i = 0; i < WMKC_FEA_BL; i += 8) {
         *(block + i)     ^= *(iv + i);
@@ -169,10 +169,54 @@ void fea::xorWithIV(wByte *block, wByte *iv)
     }
 }
 
-void fea::keyExtension(wByte *key, wByte *iv)
+void FEA::cipher(uint8_t *p, uint8_t *roundKey)
 {
-    wByte keyBuffer[sizeof(this->key)];
-    wByte ivBuffer[sizeof(this->iv)];
+    uint32_t r, i;
+    uint8_t *subkey = nullptr;
+    for(r = 0; r < WMKC_FEA_NR; ++r) {
+        this->subBytes(p);
+        subkey = roundKey + (r << 5); // roundKey + r * 32
+        for(i = 0; i < (WMKC_FEA_BL << 1); i += 8) {
+            *(p + (i       & 15)) ^= *(subkey + i);
+            *(p + ((i + 1) & 15)) ^= *(subkey + i + 1);
+            *(p + ((i + 2) & 15)) ^= *(subkey + i + 2);
+            *(p + ((i + 3) & 15)) ^= *(subkey + i + 3);
+            *(p + ((i + 4) & 15)) ^= *(subkey + i + 4);
+            *(p + ((i + 5) & 15)) ^= *(subkey + i + 5);
+            *(p + ((i + 6) & 15)) ^= *(subkey + i + 6);
+            *(p + ((i + 7) & 15)) ^= *(subkey + i + 7);
+        }
+        this->shiftRows(p);
+        this->shiftBits(p);
+    }
+}
+
+void FEA::invCipher(uint8_t *c, uint8_t *roundKey)
+{
+    uint32_t r, i;
+    uint8_t *subkey = nullptr;
+    for(r = 0; r < WMKC_FEA_NR; ++r) {
+        this->invShiftBits(c);
+        this->invShiftRows(c);
+        subkey = roundKey + ((WMKC_FEA_NR - r - 1) << 5); // roundKey + r * 32
+        for(i = 0; i < (WMKC_FEA_BL << 1); i += 8) {
+            *(c + (i       & 15)) ^= *(subkey + i);
+            *(c + ((i + 1) & 15)) ^= *(subkey + (i + 1));
+            *(c + ((i + 2) & 15)) ^= *(subkey + (i + 2));
+            *(c + ((i + 3) & 15)) ^= *(subkey + (i + 3));
+            *(c + ((i + 4) & 15)) ^= *(subkey + (i + 4));
+            *(c + ((i + 5) & 15)) ^= *(subkey + (i + 5));
+            *(c + ((i + 6) & 15)) ^= *(subkey + (i + 6));
+            *(c + ((i + 7) & 15)) ^= *(subkey + (i + 7));
+        }
+        this->invSubBytes(c);
+    }
+}
+
+void FEA::keyExtension(const uint8_t *key, const uint8_t *iv)
+{
+    uint8_t keyBuffer[sizeof(this->key)];
+    uint8_t ivBuffer[sizeof(this->iv)];
     uint32_t rkIndex, index;
 
     memcpy(keyBuffer, key, sizeof(this->key));
@@ -192,12 +236,11 @@ void fea::keyExtension(wByte *key, wByte *iv)
         }
 
         for(index = 0; index < sizeof(this->key); ++index) {
-            keyBuffer[index] ^= \
-                ivBuffer[0] ^ ivBuffer[2]  ^ ivBuffer[4]  ^ ivBuffer[6] ^
-                ivBuffer[8] ^ ivBuffer[10] ^ ivBuffer[12] ^ ivBuffer[14];
-            keyBuffer[index] ^= \
-                ivBuffer[1] ^ ivBuffer[3]  ^ ivBuffer[5]  ^ ivBuffer[7] ^
-                ivBuffer[9] ^ ivBuffer[11] ^ ivBuffer[13] ^ ivBuffer[15];
+            keyBuffer[index] ^= 
+                ivBuffer[0]  ^ ivBuffer[1]  ^ ivBuffer[2]  ^ ivBuffer[3]  ^
+                ivBuffer[4]  ^ ivBuffer[5]  ^ ivBuffer[6]  ^ ivBuffer[7]  ^
+                ivBuffer[8]  ^ ivBuffer[9]  ^ ivBuffer[10] ^ ivBuffer[11] ^
+                ivBuffer[12] ^ ivBuffer[13] ^ ivBuffer[14] ^ ivBuffer[15];
             keyBuffer[index] ^= (ivBuffer[index & 15] + index);
         }
 
@@ -222,182 +265,13 @@ void fea::keyExtension(wByte *key, wByte *iv)
     memory_secure(keyBuffer, sizeof(this->key));
     memory_secure(ivBuffer, sizeof(this->iv));
 }
-
-void fea::cipher(wByte *p, wByte *roundKey)
-{
-    uint32_t r, i;
-    wByte *subkey = nullptr;
-    for(r = 0; r < WMKC_FEA_NR; ++r) {
-        this->subBytes(p);
-        subkey = roundKey + (r << 5); // roundKey + r * 32
-        for(i = 0; i < (WMKC_FEA_BL << 1); i += 8) {
-            *(p + (i       & 15)) ^= *(subkey + i);
-            *(p + ((i + 1) & 15)) ^= *(subkey + i + 1);
-            *(p + ((i + 2) & 15)) ^= *(subkey + i + 2);
-            *(p + ((i + 3) & 15)) ^= *(subkey + i + 3);
-            *(p + ((i + 4) & 15)) ^= *(subkey + i + 4);
-            *(p + ((i + 5) & 15)) ^= *(subkey + i + 5);
-            *(p + ((i + 6) & 15)) ^= *(subkey + i + 6);
-            *(p + ((i + 7) & 15)) ^= *(subkey + i + 7);
-        }
-        this->shiftRows(p);
-        this->shiftBits(p);
-    }
-}
-
-void fea::invCipher(wByte *c, wByte *roundKey)
-{
-    uint32_t r, i;
-    wByte *subkey = nullptr;
-    for(r = 0; r < WMKC_FEA_NR; ++r) {
-        this->invShiftBits(c);
-        this->invShiftRows(c);
-        subkey = roundKey + ((WMKC_FEA_NR - r - 1) << 5); // roundKey + r * 32
-        for(i = 0; i < (WMKC_FEA_BL << 1); i += 8) {
-            *(c + (i       & 15)) ^= *(subkey + i);
-            *(c + ((i + 1) & 15)) ^= *(subkey + (i + 1));
-            *(c + ((i + 2) & 15)) ^= *(subkey + (i + 2));
-            *(c + ((i + 3) & 15)) ^= *(subkey + (i + 3));
-            *(c + ((i + 4) & 15)) ^= *(subkey + (i + 4));
-            *(c + ((i + 5) & 15)) ^= *(subkey + (i + 5));
-            *(c + ((i + 6) & 15)) ^= *(subkey + (i + 6));
-            *(c + ((i + 7) & 15)) ^= *(subkey + (i + 7));
-        }
-        this->invSubBytes(c);
-    }
-}
-
-/* ECB: Begin */
-void fea::ecb_encrypt(wByte *p)
-{
-    this->cipher(p, this->roundKey);
-}
-
-void fea::ecb_decrypt(wByte *c)
-{
-    this->invCipher(c, this->roundKey);
-}
-/* ECB: End */
-
-/* CBC: Begin */
-void fea::cbc_encrypt(wByte *p, size_t n)
-{
-    wByte roundIv[WMKC_FEA_BL];
-
-    memcpy(roundIv, this->iv, WMKC_FEA_BL);
-    for(uint32_t i = 0; i < n; i += WMKC_FEA_BL) {
-        this->xorWithIV(p + i, roundIv);
-        this->cipher(p + i, this->roundKey);
-        memcpy(roundIv, p + i, WMKC_FEA_BL);
-    }
-}
-
-void fea::cbc_decrypt(wByte *c, size_t n)
-{
-    wByte roundIv[WMKC_FEA_BL];
-    wByte roundBuffer[WMKC_FEA_BL];
-
-    memcpy(roundIv, this->iv, WMKC_FEA_BL);
-    for(uint32_t i = 0; i < n; i += WMKC_FEA_BL) {
-        memcpy(roundBuffer, c + i, WMKC_FEA_BL);
-        this->invCipher(c + i, this->roundKey);
-        this->xorWithIV(c + i, roundIv);
-        memcpy(roundIv, roundBuffer, WMKC_FEA_BL);
-    }
-}
-/* CBC: End */
-
-/* CTR: Begin */
-static void nonce_add(wByte *counter)
-{
-    for(int32_t ctr_i = (WMKC_FEA_BL - 1); ctr_i >= 0; --ctr_i) {
-        if(*(counter + ctr_i) == 0xff) {
-            *(counter + ctr_i) = 0x00;
-        } else {
-            ++(*(counter + ctr_i));
-            break;
-        }
-    }
-}
-
-void fea::ctr_xcrypt(wByte *d, size_t n)
-{
-    size_t i, ks_i;
-    wByte counter[WMKC_FEA_BL] = {0};
-    wByte ks[WMKC_FEA_BL] = {0};
-
-    memcpy(counter, this->iv, WMKC_FEA_BL - 1); // 确保得到的Nonce足够长
-
-    for(i = 0, ks_i = WMKC_FEA_BL; i < n; ++i, ++ks_i) {
-        if(ks_i == WMKC_FEA_BL) {
-            memcpy(ks, counter, WMKC_FEA_BL);
-            this->cipher(ks, this->roundKey);
-
-            nonce_add(counter);
-
-            ks_i = 0;
-        }
-        *(d + i) ^= *(ks + ks_i);
-    }
-}
-/* CTR: End */
-
-/* CFB: Begin */
-void fea::cfb_encrypt(wByte *p, size_t n, uint32_t segmentSize)
-{
-    if(segmentSize & 7) {
-        throw std::runtime_error("fea::cfb_encrypt: "
-            "The segment size is not a multiple of 8.");
-    }
-
-    size_t i, j;
-    wByte round_iv[WMKC_FEA_BL];
-
-    segmentSize >>= 3; // 将单位从位转到字节
-    n = (n + segmentSize - 1) / segmentSize; // 得到总共有多少个数据段
-
-    memcpy(round_iv, this->iv, WMKC_FEA_BL);
-    for(i = 0; i < n; ++i) {
-        this->cipher(round_iv, this->roundKey);
-        for(j = 0; j < segmentSize; ++j) {
-            *(p + (i * segmentSize + j)) ^= round_iv[j];
-        }
-        memcpy(round_iv, p + i * segmentSize, segmentSize);
-    }
-}
-
-void fea::cfb_decrypt(wByte *c, size_t n, uint32_t segmentSize)
-{
-    if(segmentSize & 7) {
-        throw std::runtime_error("fea::cfb_encrypt: "
-            "The segment size is not a multiple of 8.");
-    }
-
-    size_t i, j;
-    wByte round_iv[WMKC_FEA_BL];
-    wByte tmp_buf[WMKC_FEA_BL];
-    segmentSize >>= 3; // 将单位从位转到字节
-    n = (n + segmentSize - 1) / segmentSize; // 得到总共有多少个数据段
-
-    memcpy(round_iv, this->iv, WMKC_FEA_BL);
-    for(i = 0; i < n; ++i) {
-        memcpy(tmp_buf, c + i * segmentSize, segmentSize);
-        this->cipher(round_iv, this->roundKey);
-        for(j = 0; j < segmentSize; ++j) {
-            *(c + (i * segmentSize + j)) ^= round_iv[j];
-        }
-        memcpy(round_iv, tmp_buf, segmentSize);
-    }
-}
-/* CFB: End */
-
 //////////////////////////////////////////////////////////
 
-fea::fea(const wByte *key, const wByte *iv, const uint32_t segmentSize)
-: key(), iv(), nonce(), roundKey(), segmentSize(segmentSize)
+FEA::FEA(const uint8_t *key, const uint8_t *iv, Nonce_CTX nonce, const uint32_t segmentSize)
+: key(), iv(), roundKey(), nonce(nonce), segmentSize(segmentSize)
 {
     if(!key || !iv) {
-        throw std::runtime_error("fea::fea: key or iv is null.");
+        throw std::runtime_error("FEA::FEA: key or iv is NULL.");
     }
 
     memcpy(this->key, key, sizeof(this->key));
@@ -406,13 +280,13 @@ fea::fea(const wByte *key, const wByte *iv, const uint32_t segmentSize)
     this->keyExtension(this->key, this->iv);
 }
 
-fea::~fea()
+FEA::~FEA()
 {
     memory_secure(this->key, sizeof(this->key));
     memory_secure(this->iv, sizeof(this->iv));
 }
 
-void fea::encrypt(wByte *content, size_t size, xcryptMode mode)
+void FEA::encrypt(uint8_t *content, size_t size, xcryptMode mode)
 {
     switch(mode) {
         case xcryptMode::ECB:
@@ -426,7 +300,7 @@ void fea::encrypt(wByte *content, size_t size, xcryptMode mode)
     }
 }
 
-void fea::decrypt(wByte *content, size_t size, xcryptMode mode)
+void FEA::decrypt(uint8_t *content, size_t size, xcryptMode mode)
 {
     switch(mode) {
         case xcryptMode::ECB:
